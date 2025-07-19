@@ -1,0 +1,7 @@
+lbytech:
+  db:
+    host: ${host}
+    password: ${password}
+  redis:
+    host: ${host}
+    password: ${password}
