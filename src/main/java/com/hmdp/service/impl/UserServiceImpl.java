@@ -63,7 +63,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         //根据手机号查用户
-        User user = this.lambdaQuery().eq(User::getPhone, phone).one();
+        //User user = this.lambdaQuery().eq(User::getPhone, phone).one();
+        User user = query().eq("phone", phone).one();
         // 没有则注册
         if (user == null) {
             user = createUserWithPhone(phone);
