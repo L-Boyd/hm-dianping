@@ -37,7 +37,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 符合，生成验证码
         String code = RandomUtil.randomNumbers(6);
 
-        // 报错验证码到session
+        // 保存验证码到session
         session.setAttribute("code", code);
 
         // 发送验证码
