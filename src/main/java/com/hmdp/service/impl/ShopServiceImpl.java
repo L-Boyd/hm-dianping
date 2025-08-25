@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.hmdp.dto.Result;
@@ -31,6 +32,12 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Override
     public Result queryById(Long id) {
+        // 解决缓存穿透
+        return queryWithPassThrough(id);
+    }
+
+    // 解决缓存穿透
+    public Result queryWithPassThrough(Long id) {
         String key = RedisConstants.CACHE_SHOP_KEY + id;
         // 从redis查询商铺缓存
         String shopJson = stringRedisTemplate.opsForValue().get(key);
