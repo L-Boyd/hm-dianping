@@ -1,10 +1,19 @@
 package com.hmdp.service.impl;
 
+import com.hmdp.dto.Result;
+import com.hmdp.entity.SeckillVoucher;
 import com.hmdp.entity.VoucherOrder;
 import com.hmdp.mapper.VoucherOrderMapper;
+import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.UserHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.annotation.Resource;
+import java.time.LocalDateTime;
 
 /**
  * <p>
@@ -17,4 +26,51 @@ import org.springframework.stereotype.Service;
 @Service
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
 
+    @Resource
+    private ISeckillVoucherService seckillVoucherService;
+
+    @Resource
+    private RedisIdWorker redisIdWorker;
+
+    @Override
+    @Transactional
+    public Result createSeckillVoucherOrder(Long voucherId) {
+        SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
+
+        // 判断是否在可购时间内
+        LocalDateTime beginTime = seckillVoucher.getBeginTime();
+        LocalDateTime endTime = seckillVoucher.getEndTime();
+        if (beginTime.isAfter(LocalDateTime.now())) {
+            return Result.fail("优惠券未到可购买时间");
+        }
+        if (endTime.isBefore(LocalDateTime.now())) {
+            return Result.fail("优惠券已过可购买时间");
+        }
+
+        // 判断库存是否充足
+        Integer stock = seckillVoucher.getStock();
+        if (stock.compareTo(0) < 0) {
+            return Result.fail("优惠券已售罄");
+        }
+
+        // 扣减库存
+        boolean success = seckillVoucherService.update().setSql("stock = stock - 1")
+                .eq("voucher_id", voucherId)
+                .update();
+        if (!success) {
+            return Result.fail("优惠券已售罄");
+        }
+
+        // 创建订单
+        VoucherOrder voucherOrder = new VoucherOrder();
+        long orderId = redisIdWorker.nextId("voucherOrder");
+        voucherOrder.setId(orderId);
+        voucherOrder.setVoucherId(voucherId);
+        // 因为是静态方法，所以可以不用创建对象直接调用
+        voucherOrder.setUserId(UserHolder.getUser().getId());
+        save(voucherOrder);
+
+        // 返回订单id
+        return Result.ok(orderId);
+    }
 }
