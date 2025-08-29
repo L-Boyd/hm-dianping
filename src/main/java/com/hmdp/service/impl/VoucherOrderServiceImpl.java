@@ -9,6 +9,7 @@ import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,7 +55,12 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
         Long userId = UserHolder.getUser().getId();
         synchronized (userId.toString().intern()) {
-            return createVoucherOrder(voucherId);
+            // this.createVoucherOrder(voucherId)，不是代理对象，事务生效是因为spring对this这个类做了动态代理，对代理对象做了事务处理，所以直接调没有事务功能。
+            // 这是spring事务失效场景之一
+
+            // 从AopContext中获取代理对象
+            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucherOrder(voucherId);
         }
     }
 
