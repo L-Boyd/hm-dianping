@@ -52,7 +52,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("优惠券已售罄");
         }
 
-        return createVoucherOrder(voucherId);
+        Long userId = UserHolder.getUser().getId();
+        synchronized (userId.toString().intern()) {
+            return createVoucherOrder(voucherId);
+        }
     }
 
     @Transactional
@@ -60,35 +63,33 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         // 一人一单
         Long userId = UserHolder.getUser().getId();
 
-        synchronized (userId.toString().intern()) {
-            int count = query()
-                    .eq("user_id", userId)
-                    .eq("voucher_id", voucherId)
-                    .count();
-            if (count > 0) {
-                return Result.fail("您已购买过该优惠券");
-            }
-
-            // 扣减库存
-            boolean success = seckillVoucherService.update().setSql("stock = stock - 1")
-                    .eq("voucher_id", voucherId)
-                    .ge("stock", 1)
-                    .update();
-            if (!success) {
-                return Result.fail("优惠券已售罄");
-            }
-
-            // 创建订单
-            VoucherOrder voucherOrder = new VoucherOrder();
-            long orderId = redisIdWorker.nextId("voucherOrder");
-            voucherOrder.setId(orderId);
-            voucherOrder.setVoucherId(voucherId);
-            // 因为是静态方法，所以可以不用创建对象直接调用
-            voucherOrder.setUserId(userId);
-            save(voucherOrder);
-
-            // 返回订单id
-            return Result.ok(orderId);
+        int count = query()
+                .eq("user_id", userId)
+                .eq("voucher_id", voucherId)
+                .count();
+        if (count > 0) {
+            return Result.fail("您已购买过该优惠券");
         }
+
+        // 扣减库存
+        boolean success = seckillVoucherService.update().setSql("stock = stock - 1")
+                .eq("voucher_id", voucherId)
+                .ge("stock", 1)
+                .update();
+        if (!success) {
+            return Result.fail("优惠券已售罄");
+        }
+
+        // 创建订单
+        VoucherOrder voucherOrder = new VoucherOrder();
+        long orderId = redisIdWorker.nextId("voucherOrder");
+        voucherOrder.setId(orderId);
+        voucherOrder.setVoucherId(voucherId);
+        // 因为是静态方法，所以可以不用创建对象直接调用
+        voucherOrder.setUserId(userId);
+        save(voucherOrder);
+
+        // 返回订单id
+        return Result.ok(orderId);
     }
 }
