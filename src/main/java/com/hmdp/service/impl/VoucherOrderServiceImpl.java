@@ -33,7 +33,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private RedisIdWorker redisIdWorker;
 
     @Override
-    @Transactional
     public Result createSeckillVoucherOrder(Long voucherId) {
         SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
 
@@ -53,6 +52,22 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("优惠券已售罄");
         }
 
+        return createVoucherOrder(voucherId);
+    }
+
+    // 锁是this
+    @Transactional
+    public synchronized Result createVoucherOrder(Long voucherId) {
+        // 一人一单
+        Long userId = UserHolder.getUser().getId();
+        int count = query()
+                .eq("user_id", userId)
+                .eq("voucher_id", voucherId)
+                .count();
+        if (count > 0) {
+            return Result.fail("您已购买过该优惠券");
+        }
+
         // 扣减库存
         boolean success = seckillVoucherService.update().setSql("stock = stock - 1")
                 .eq("voucher_id", voucherId)
@@ -68,7 +83,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         voucherOrder.setId(orderId);
         voucherOrder.setVoucherId(voucherId);
         // 因为是静态方法，所以可以不用创建对象直接调用
-        voucherOrder.setUserId(UserHolder.getUser().getId());
+        voucherOrder.setUserId(userId);
         save(voucherOrder);
 
         // 返回订单id
