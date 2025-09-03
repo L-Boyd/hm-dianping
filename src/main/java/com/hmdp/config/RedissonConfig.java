@@ -20,8 +20,32 @@ public class RedissonConfig {
     private String redisPassword;
 
     @Bean
-    public RedissonClient redissionClient() {
+    public RedissonClient redissonClient() {
         String redisAddress = "redis://" + redisHost + ":" + redisPort;
+
+        Config config = new Config();
+        config.useSingleServer()
+                .setAddress(redisAddress)
+                .setPassword(redisPassword);
+        return Redisson.create(config);
+
+    }
+
+    @Bean
+    public RedissonClient redissonClient2() {
+        String redisAddress = "redis://192.168.1.7:6379";
+
+        Config config = new Config();
+        config.useSingleServer()
+                .setAddress(redisAddress)
+                .setPassword(redisPassword);
+        return Redisson.create(config);
+
+    }
+
+    @Bean
+    public RedissonClient redissonClient3() {
+        String redisAddress = "redis://192.168.1.7:6400";
 
         Config config = new Config();
         config.useSingleServer()
