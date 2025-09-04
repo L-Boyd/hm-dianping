@@ -18,6 +18,7 @@ spring:
     password: ${lbytech.redis.password}
     lettuce:
       pool:
+        enabled: true # 开启线程池自动开启心跳机制，避免连接被断开
         max-active: 10
         max-idle: 10
         min-idle: 1
