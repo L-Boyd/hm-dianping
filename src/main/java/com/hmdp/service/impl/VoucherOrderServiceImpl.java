@@ -13,16 +13,19 @@ import com.hmdp.utils.UserHolder;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 
 /**
  * <p>
- *  服务实现类
+ * 服务实现类
  * </p>
  *
  * @author 虎哥
@@ -43,9 +46,17 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private RedissonClient redissonClient;
 
+    private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
+
+    static {
+        SECKILL_SCRIPT = new DefaultRedisScript<>();
+        SECKILL_SCRIPT.setLocation(new ClassPathResource("lua/seckill.lua"));
+        SECKILL_SCRIPT.setResultType(Long.class);
+    }
+
     @Override
     public Result createSeckillVoucherOrder(Long voucherId) {
-        SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
+        /*SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
 
         // 判断是否在可购时间内
         LocalDateTime beginTime = seckillVoucher.getBeginTime();
@@ -83,7 +94,27 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
         } finally {
             lock.unlock();
+        }*/
+
+        // 改用redis提高响应速度
+        Long userId = UserHolder.getUser().getId();
+        Long result = stringRedisTemplate.execute(SECKILL_SCRIPT,
+                Collections.emptyList(),
+                voucherId.toString(),
+                userId.toString());
+        int resultInt = result.intValue();
+        if (result == 1) {
+            return Result.fail("优惠券已售罄");
         }
+        if (result == 2) {
+            return Result.fail("您已购买过该优惠券");
+        }
+        if (resultInt == 0) {
+            // TODO 保存阻塞队列
+            long orderId = redisIdWorker.nextId("order");
+            return Result.ok(orderId);
+        }
+        return Result.ok();
     }
 
     @Transactional

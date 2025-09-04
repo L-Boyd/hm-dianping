@@ -10,6 +10,8 @@ spring:
     url: jdbc:mysql://${lbytech.db.host}:3306/hm-dianping?useSSL=false&serverTimezone=UTC
     username: root
     password: ${lbytech.db.password}
+    hikari:
+      max-lifetime: 180000
   redis:
     host: ${lbytech.redis.host}
     port: 6379
